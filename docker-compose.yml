@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  swoole:
+    build: .
+    env_file: .env
+    command: php /app/websocket.php start
+    ports:
+      - '8080:8080'
+    volumes:
+      - './:/app'
+    extra_hosts:
+      - 'swoole.local:192.168.50.37'
