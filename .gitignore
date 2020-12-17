@@ -1,0 +1,6 @@
+.idea
+.env
+/certs
+/vendor
+/node_modules
+!/certs/self-signed-example.*
