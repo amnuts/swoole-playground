@@ -27,8 +27,8 @@ $connections->create();
 
 $server = new Server($host, $port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $server->set([
-    'ssl_cert_file' => __DIR__ . '/certs/ssl.crt',
-    'ssl_key_file' => __DIR__ . '/certs/ssl.key',
+    'ssl_cert_file' => __DIR__ . '/certs/self-signed-example.crt',
+    'ssl_key_file' => __DIR__ . '/certs/self-signed-example.key',
     'open_http2_protocol' => true
 ]);
 
@@ -39,14 +39,13 @@ $server->on('start', function (Server $server) use ($hostname, $port) {
 
 $server->on('open', function (Server $server, Request $request) use ($messages, $connections) {
     echo "connection open: {$request->fd}\n";
-    var_dump($request);
 
     // store the client on our memory table
     $connections->set($request->fd, ['client' => $request->fd]);
 
     // update all the client with the existing messages
     foreach ($messages as $row) {
-        if (empty($row->room) || $row->room === $request->room) {
+        if (empty($row['room'])) {
             $server->push($request->fd, json_encode($row));
         }
     }
@@ -64,6 +63,8 @@ $server->on('message', function (Server $server, Frame $frame) use ($messages, $
     // frame data comes in as a string
     $output = json_decode($frame->data, true);
 
+    $connections->set($frame->fd, ['room' => $output['room']]);
+
     // assign a "unique" id for this message
     $output['id'] = time();
     $output['client'] = $frame->fd;
@@ -73,7 +74,9 @@ $server->on('message', function (Server $server, Frame $frame) use ($messages, $
 
     // now we notify any of the connected clients
     foreach ($connections as $client) {
-        $server->push($client['client'], json_encode($output));
+        if (empty($output['room']) || $client['room'] === $output['room']) {
+            $server->push($client['client'], json_encode($output));
+        }
     }
 });
 
